@@ -1,0 +1,134 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title></title>
+ <!--
+  <link rel="stylesheet" href="extensions/dev/brackets-node-madge/jquery/development-bundle/themes/smoothness/jquery-ui.css" />
+  <link href="extensions/dev/brackets-node-madge/jquery/css/smoothness/jquery-ui-1.10.2.custom.css" rel="stylesheet">
+  <script src="extensions/dev/brackets-node-madge/jquery/js/jquery-1.9.1.js"></script>
+  <script src="extensions/dev/brackets-node-madge/jquery/js/jquery-ui-1.10.2.custom.js"></script>
+-->
+  <!--<link rel="stylesheet" href="/resources/demos/style.css" />-->
+<!-- <script>
+  $(function() {
+    
+    $( "#accordion" ).accordion();
+    
+
+    
+    var availableTags = [
+      "ActionScript",
+      "AppleScript",
+      "Asp",
+      "BASIC",
+      "C",
+      "C++",
+      "Clojure",
+      "COBOL",
+      "ColdFusion",
+      "Erlang",
+      "Fortran",
+      "Groovy",
+      "Haskell",
+      "Java",
+      "JavaScript",
+      "Lisp",
+      "Perl",
+      "PHP",
+      "Python",
+      "Ruby",
+      "Scala",
+      "Scheme"
+    ];
+    $( "#autocomplete" ).autocomplete({
+      source: availableTags
+    });
+    
+
+    
+    $( "#button" ).button();
+    $( "#radioset" ).buttonset();
+    
+
+    
+    $( "#tabs" ).tabs();
+    
+
+    
+    $( "#dialog" ).dialog({
+      autoOpen: false,
+      width: 400,
+      buttons: [
+        {
+          text: "Ok",
+          click: function() {
+            $( this ).dialog( "close" );
+          }
+        },
+        {
+          text: "Cancel",
+          click: function() {
+            $( this ).dialog( "close" );
+          }
+        }
+      ]
+    });
+
+    // Link to open the dialog
+    $( "#dialog-link" ).click(function( event ) {
+      $( "#dialog" ).dialog( "open" );
+      event.preventDefault();
+    });
+    
+
+    
+    $( "#datepicker" ).datepicker({
+      inline: true
+    });
+    
+
+    
+    $( "#slider" ).slider({
+      range: true,
+      values: [ 17, 67 ]
+    });
+    
+
+    
+    $( "#progressbar" ).progressbar({
+      value: 20
+    });
+    
+
+    // Hover states on the static widgets
+    $( "#dialog-link, #icons li" ).hover(
+      function() {
+        $( this ).addClass( "ui-state-hover" );
+      },
+      function() {
+        $( this ).removeClass( "ui-state-hover" );
+      }
+    );
+  });
+  </script>
+-->
+</head>
+<body>
+<div id="panel" class="bottom-panel no-focus"> 
+        <div class="toolbar simple-toolbar-layout vert-resizable top-resizer " >
+        <div class="rpt-title" id="rpt-title" > MaDGe  </div> 
+
+          <a href="#" id="rpt-close" class="close">[x] &nbsp;</a>
+        </div>
+      <div id="tabular" class="table-container resizable-content ">
+<!--           <ul>
+            <li><a href="#cjs">CJS</a></li>
+            <li><a href="#amd">AMD</a></li>
+          </ul> -->
+        <div id="amd" class="amd table-container resizable-content "></div>
+        <div id="cjs" class="cjs table-container resizable-content "></div>
+      </div>
+</div>
+</body>

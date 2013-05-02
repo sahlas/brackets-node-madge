@@ -1,0 +1,48 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>{{title}}</title>
+
+
+	<style type="text/css">
+	    .moduleElem, .dependencyElem, .content, .section { font-family: "Arial", Arial, sans-serif; }
+    .moduleElem {
+	font-size: 1.2em;
+	min-width: 110px;
+	display: inline-block;
+}
+    .dependencyElem {
+	font-size: 0.8em;
+	border: 3px solid #cccccc;
+	padding: 5px;
+	resize: both;
+	position: relative;
+	overflow: auto;
+	height: 160px;
+	width: 600px;
+	background-color: #FFFFFF;
+}
+    .content { font-size: .8em; background:#e6e6e6; border: 3px solid #cccccc; padding: 5px; resize:both; position:relative; overflow:auto; height:160px; width:600px; }
+    .section { display:none; }
+
+		</style>
+
+</head>
+
+<body>
+		<div id="panel1" class="bottom-panel no-focus">
+           <div class="toolbar simple-toolbar-layout vert-resizable top-resizer " >
+                <div class="title" id="madge-title" > {{title}} </div>
+</div>
+            <div class="table-container resizable-content">
+            <br />
+                <div>
+                <span class="moduleElem" id="moduleElem"/></span>
+                <span class="dependencyElem" id="dependencyElem"/></span>
+                <span class="detailsElem" id="detailsElem"/></span>
+                <br />
+            </div>
+</div>
+</body>
+</html>
