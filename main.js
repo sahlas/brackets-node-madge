@@ -118,30 +118,43 @@ define(function (require, exports, module) {
             dependencyElem,
             moduleName,
             dependencyName, newFileName, 
-            makeCell, headerTable, itemTable, itemHeaders, noResltsMsg,
+            makeCell, headerTable, itemTable, itemHeaders, noResltsMsg, minResults,
             count;
 
-        makeCell = function (content, end, altColors, arrowPos) {
-            var lBracket = "[", rBracket = "]", arrow = "--";
+        minResults = false;
+        makeCell = function (content, end, altColors, arrowPos, parseObj) {
+            var arrow = "-> ";
             content = "" + content ;
+            var element = null;
+            if (parseObj) {
+                var contentArray = content.split(',');
+                var newContent = "";
+                for (var i = 0; i < contentArray.length; i++) {
+                    element = contentArray[i];
+                    //console.log(element);
+                    newContent += element + arrow;
+                }
+                content = content.replace(new RegExp(',', 'g'), '  ->  ');
+                //content = newContent;
+            }
             
-            if (altColors)  {// mark end
+            if (altColors)  {// mark end - no need for further punctuation format
                 if (!end) {
                     if (arrowPos === "begin") {
                         return $("<td/>").text(arrow + content).css({fontSize:20, color: 'green'});
                     } else {
-                        return $("<td/>").text(content + arrow).css({fontSize:16, color: 'green'});   
+                        return $("<td/>").text(content).css({fontSize:16, color: 'green'});   
                     }
                     
                 } else {
                     return $("<td/>").text(content).css({fontSize:20, color: 'green'});
                 }
             } else {
-                if (!end)  {// mark end
+                if (!end)  {// mark end - no need for further punctuation format
                     if (arrowPos === "begin") {
                         return $("<td/>").text(arrow + content).css({fontSize:20, color: 'blue'});
                     } else {
-                        return $("<td/>").text(content + arrow).css({fontSize:16, color: 'blue'});
+                        return $("<td/>").text(content).css({fontSize:16, color: 'blue'});
                     }
                     
                 } else {
@@ -161,7 +174,6 @@ define(function (require, exports, module) {
                 if (result.match('png')) {
                     doImg = true;
                 }
-
             } catch (err) {
                 console.log("err: " + err);
             }
@@ -180,9 +192,10 @@ define(function (require, exports, module) {
                 for (key in result) {
                     if (result.hasOwnProperty(key)) {
                         obj = result[key];
-                        if (obj.length > 0) {// has dependencies
+                        if (obj.length > 0) {// modules here have dependencies so include in report only mods with dependencies
+                            minResults = true;
                             var row = $("<tr/>")
-                                .append(makeCell(key, true, true))
+                                .append(makeCell(key, true, true, null)) // adding key (module name) 
                                 .appendTo(itemTable);
                             
                             $(row).click(function () {
@@ -190,7 +203,6 @@ define(function (require, exports, module) {
                                     selectedRow.removeClass("selected");
                                 }
                                 newFileName = dirSelection + this.innerText + ".js";
-                                console.log("open file named " + newFileName);
                                 $(this).addClass("selected");
                                 selectedRow = $(this);
                                 CommandManager.execute(Commands.FILE_ADD_TO_WORKING_SET, {fullPath: newFileName});
@@ -199,40 +211,55 @@ define(function (require, exports, module) {
                             for (prop in obj) {
                                 if (obj.hasOwnProperty(prop)) {
                                     var outerRow = $("<tr/>")
-                                            .append(makeCell(obj[prop], false, false, "begin"))
+                                            .append(makeCell(obj[prop], false, false, "begin")) // and adding dependencies for key 
                                             .appendTo(itemTable);
                                     $(outerRow).click(function () {
                                         if (selectedRow) {
                                             selectedRow.removeClass("selected");
                                         }
-                                        newFileName = dirSelection + this.innerText.replace('--', '') + ".js";
-                                        console.log("open file named " + newFileName);
+                                        newFileName = dirSelection + this.innerText.replace('-> ', '') + ".js";
                                         $(this).addClass("selected");
                                         selectedRow = $(this);
                                         CommandManager.execute(Commands.FILE_ADD_TO_WORKING_SET, {fullPath: newFileName});
                                     });                        
-                                    console.log(prop + " = " + obj[prop]);
                                 }
                             }
                         }
                     }
                 }
             }
-            if (modFormat === "cjs") {
+            if (modFormat === "cjs" && minResults) {
                 itemHeaders = "<tr><th>Module Dependceny List ( " + modFormat + " )</th></tr>";
                 $(headerTable).append(itemHeaders);
                 $(headerTable).append(itemTable);
                 $("#cjs").empty().append(headerTable);
                 modFormat = "amd";
-            } else if (modFormat === "amd")
-            {
+            } else if (modFormat === "amd"  && minResults) {
                 itemHeaders = "<tr><th>Module Dependceny List ( " + modFormat + " )</th></tr>";
                 $(headerTable).append(itemHeaders);
                 $(headerTable).append(itemTable);
                 $("#amd").empty().append(headerTable);
                 modFormat = "cjs";
             } else {
-                //do nothing
+                 // when nothing to report
+                if (!minResultsr) {
+                    row = $("<tr/>")
+                            .append(makeCell(noResltsMsg, true, false, null))
+                            .appendTo(itemTable);
+                    if (modFormat === "cjs") {
+                        itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (" + modFormat + ")</th></tr>";
+                        $(headerTable).append(itemHeaders);
+                        $(headerTable).append(itemTable);
+                        $("#cjs").empty().append(headerTable);
+                     }  else if (modFormat === "amd") {
+                        itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (" + modFormat + ")</th></tr>";
+                        $(headerTable).append(itemHeaders);
+                        $(headerTable).append(itemTable);
+                        $("#amd").empty().append(headerTable);
+                    } else {
+                        //do nothing
+                    }
+                }
             }
         } else {
             // list circular references
@@ -241,16 +268,15 @@ define(function (require, exports, module) {
                 for (i = 0; i < result.length; i++) {
                     obj = result[i];
                     count   = result.length;
-                    console.log(i % 2);
 
-                    if (i % 2 === 1){//alternate row color
+                    if (i % 2 === 1) {//alternate row color
                         for (prop in result) {
                             if (obj.hasOwnProperty(prop)) {
                                 var row = $("<tr/>");
                                 if (count === 1) {// mark end
-                                    row.append(makeCell(result[prop], true, true));
+                                    row.append(makeCell(result[i], true, true, null, true));
                                 } else {
-                                    row.append(makeCell(result[prop] , false, true, "end"));
+                                    row.append(makeCell(result[i] , false, true, "end", true));
                                 }
                                 count--;
                             }
@@ -260,24 +286,23 @@ define(function (require, exports, module) {
                             if (obj.hasOwnProperty(prop)) {
                                 var row = $("<tr/>");
                                 if (count === 1) {// mark end
-                                    row.append(makeCell(result[prop], true, false));
+                                    row.append(makeCell(result[i], true, false, null, true));
                                 } else {
-                                    row.append(makeCell(result[prop] , false, false, "end"));
+                                    row.append(makeCell(result[i] , false, false, "end", true));
                                 }
                                 count--;
                             }
                         }
                     }
                     $(itemTable).append(row);
-                    console.log("row: " + $(row));
                 }
                 if (modFormat === "cjs") {
-                    itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (CJS)</th></tr>";
+                    itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (" + modFormat + ")</th></tr>";
                     $(headerTable).append(itemHeaders);
                     $(headerTable).append(itemTable);
                     $("#cjs").empty().append(headerTable);
                 }  else if (modFormat === "amd") {
-                    itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (AMD)</th></tr>";
+                    itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (" + modFormat + ")</th></tr>";
                     $(headerTable).append(itemHeaders);
                     $(headerTable).append(itemTable);
                     $("#amd").empty().append(headerTable);
@@ -288,15 +313,15 @@ define(function (require, exports, module) {
                 // when nothing to report
                 if (key === undefined && !doImg && !result.length > 0) {
                     row = $("<tr/>")
-                            .append(makeCell(noResltsMsg, true))
+                            .append(makeCell(noResltsMsg, true, false, null))
                             .appendTo(itemTable);
                     if (modFormat === "cjs") {
-                        itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (CJS)</th></tr>";
+                        itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (" + modFormat + ")</th></tr>";
                         $(headerTable).append(itemHeaders);
                         $(headerTable).append(itemTable);
                         $("#cjs").empty().append(headerTable);
                      }  else if (modFormat === "amd") {
-                        itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (AMD)</th></tr>";
+                        itemHeaders = "<tr style='font-size: small'><th>Circular Dependency Chain (" + modFormat + ")</th></tr>";
                         $(headerTable).append(itemHeaders);
                         $(headerTable).append(itemTable);
                         $("#amd").empty().append(headerTable);
