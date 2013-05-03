@@ -34,6 +34,9 @@ maxerr: 50, node: true */
     var exec = require('child_process').exec, child, isGVInstalled;
     var fs = require('fs');
     var configData = "";
+    var doGV = false;
+    var modFormat = "cjs";
+    var pathToImage = "";
    
         
     /*
@@ -41,23 +44,20 @@ maxerr: 50, node: true */
         @return pathToImage
     */
     function saveImage(image) {
-        var pathToImage = __dirname + "/../generated/gv.png";
-        fs.unlink(pathToImage, function (err) {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log("successfully deleted : " + pathToImage);
-            }
-        });
+//        fs.unlink(pathToImage, function (err) {
+//            if (err) {
+//                console.log(err);
+//            } else {
+//                console.log("successfully deleted : " + pathToImage);
+//            }
+//        });
         fs.writeFile(pathToImage, image, function (err) {
             if (err) {
                 console.log(err);
             } else {
-                console.log("The file was saved!");
+                console.log("The file was saved! " + pathToImage);
             }
         });
-
-        domainManager.emitEvent("madge", "update", pathToImage);
         return;
     }
     
@@ -86,8 +86,11 @@ maxerr: 50, node: true */
             domainManager.emitEvent("madge", "update", results);
             return;
         } else if (image) {
+            modFormat = options.format;
+            pathToImage = __dirname + "/../generated/gv-" + modFormat + ".png";
             tree = new Madge(targetPath, options).tree;
             results = require('./node_modules/node-madge/lib/graph').image(tree, options, saveImage);
+            domainManager.emitEvent("madge", "update", pathToImage);
             return;
         } else {
             tree = new Madge(targetPath, options).tree;
@@ -138,17 +141,15 @@ maxerr: 50, node: true */
     */
     function generateGVImage(src, format) {
 
-        if (isGVInstalled) {
-            var options = {"format": format, "layout": "neato", "type": "bmp"};
+        if (isGVInstalled && doGV) {
+            var options = {"format": format, "layout": "neato", "type": "png"};
             generateGraph(src, options, true);
         } else {
+            //TODO throw an error
             return isGVInstalled;
         }
     }
 
-    function printConfigData() {
-        console.log('configData ' + configData);
-    }
     /*
         @private
         check to see if GraphVis is installed
@@ -167,15 +168,17 @@ maxerr: 50, node: true */
             }
         });
         
-        // read config to see if img gen is required'
+        // read config to see if img gen is required
         var configFile = __dirname + "/../config.json";
         console.log('configFile ' + configFile);
         fs.readFile(configFile, 'utf8', function (err, configData) {
             if (err) {
                 throw err;
             }
-            console.log(configData);
-            JSON.parse(configData, printConfigData);
+            var jsonObj = JSON.parse(configData);
+            console.log("jsonObj: " + jsonObj.GraphVis);
+            doGV = jsonObj.GraphVis;
+            console.log("doGV: " + doGV);
         });
     }
     
@@ -189,15 +192,16 @@ maxerr: 50, node: true */
             domainManager.registerDomain("madge", {major: 0, minor: 1});
         }
         isGVInstalled = isGraphVisInstalled();
+        
         domainManager.registerCommand(
             "madge",
             "generateGVImage",
             generateGVImage,
             false,
-            "determinse if GVImage is installed",
+            "generate and save image",
             [],
-            [{name: "isGVImage",
-                type: "{isGVImage: boolean}"}]
+            [{name: "pathToImage",
+                type: "{pathToImage: string}"}]
         );
 
         domainManager.registerCommand(
@@ -211,7 +215,7 @@ maxerr: 50, node: true */
                 type: "{report: string}"}]
         );
 
-        domainManager.registerCommand(//
+        domainManager.registerCommand(
             "madge",
             "findCircularDependencies",
             findCircularDependencies,
@@ -243,7 +247,6 @@ maxerr: 50, node: true */
     exports.findCircularDependencies = findCircularDependencies;
     exports.listDependenciesForModule = listDependenciesForModule;
     exports.generateGVImage = generateGVImage;
-    exports.isGraphVisInstalled = isGraphVisInstalled;
     exports.generateGraph = generateGraph;
     
     //used to load domain

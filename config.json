@@ -1,7 +1,7 @@
 {
     "default_format": "amd",
     "image": "generated/graph.png",
-    "GraphVis": "true",
+    "GraphVis": true,
     "fontFace": "Arial",
     "fontSize": "14px",
     "imageColors": {
