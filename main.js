@@ -62,6 +62,7 @@ define(function (require, exports, module) {
         enabled                 = false,
         modFormat               = "cjs",
         panel                   = require("text!templates/madge_panel.html"),
+        imageTemplate           = "",
         nodeConnection          = new NodeConnection();
         
     
@@ -259,6 +260,28 @@ define(function (require, exports, module) {
                 var row = $("<tr/>")
                     .append("<td>" + pathToPNG + "</td>")
                     .appendTo(itemTable);
+                $(row).click(function () {
+                    if (selectedRow) {
+                        selectedRow.removeClass("selected");
+                    }
+                    var tempFolder,
+                        graphVisImageHolder = new NativeFileSystem.FileEntry(moduleDir + "/generated/graphVisImage-" + modFormat + ".html"),
+                        data = {
+                        filename : pathToPNG
+                    }
+                    
+                    //tempFolder = dirEntry = new NativeFileSystem.DirectoryEntry(moduleDir + "/generated/");
+                    $(this).addClass("selected");
+                    selectedRow = $(this);
+                    
+                    imageTemplate = require("text!templates/madge.html");
+                    html = Mustache.render(imageTemplate, data);
+
+                    FileUtils.writeText(graphVisImageHolder, html).done(function () {
+                        var report = window.open(graphVisImageHolder.fullPath);
+                        report.focus();
+                    });
+                });
                 
                 if (modFormat === "cjs" && minResults  && isImage) {
                     itemHeaders = "<tr><th>Module Dependceny List ( " + modFormat + " )</th></tr>";
