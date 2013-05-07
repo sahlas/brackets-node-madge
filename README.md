@@ -16,7 +16,6 @@ GraphVis functionality has been tested on Mac OS X at this time
 * List Dependencies
 ** in the project panel select a folder you want to analyze.  Choose List Dependencies for the folder and brackets-node-madge will analyze it for the formats "cjs" for Common JS and
 "amd" for Async Module Definitions.
-
 * Find Circular Dependencies
 ** like List Dependencies but reports on any circular dependencies for both "cjs" and "amd" formats
 
