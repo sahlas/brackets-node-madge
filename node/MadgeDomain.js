@@ -66,15 +66,16 @@ maxerr: 50, node: true */
             results = require('./node_modules/node-madge/lib/analysis/depends')(tree, id);
             domainManager.emitEvent("madge", "update", results);
             return;
-        } else {
+        } else if (!options.circular && !options.depends) {
             tree = new Madge(targetPath, options).tree;
             domainManager.emitEvent("madge", "update", tree);
             return;
+        } else {
+            tree = null;
+            targetPath = "";
+            options = null;
+            return;
         }
-        tree = null;
-        targetPath = "";
-        options = null;
-        return;
     }
     
     /*  
