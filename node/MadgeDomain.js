@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2012 Adobe Systems Incorporated. All rights reserved.
+ * Copyright (c) 2013 Adobe Systems Incorporated. All rights reserved.
  *  
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"), 
@@ -36,30 +36,11 @@ maxerr: 50, node: true */
     var configData = "";
     var doGV = false;
     var modFormat = "cjs";
+    var layout = "";
     var pathToImage = "";
-   
-        
-    /*
-        async function to return the image
-        @return pathToImage
-    */
-    function saveImage(image) {
-//        fs.unlink(pathToImage, function (err) {
-//            if (err) {
-//                console.log(err);
-//            } else {
-//                console.log("successfully deleted : " + pathToImage);
-//            }
-//        });
-        fs.writeFile(pathToImage, image, function (err) {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log("The file was saved! " + pathToImage);
-            }
-        });
-        return;
-    }
+    //imageColor options
+    var fontColor, fontFace, dependencies, edge, bgcolor;
+
     
     /**
      * @private
@@ -84,13 +65,6 @@ maxerr: 50, node: true */
             id = options.id;
             results = require('./node_modules/node-madge/lib/analysis/depends')(tree, id);
             domainManager.emitEvent("madge", "update", results);
-            return;
-        } else if (image) {
-            modFormat = options.format;
-            pathToImage = __dirname + "/../generated/gv-" + modFormat + ".png";
-            tree = new Madge(targetPath, options).tree;
-            results = require('./node_modules/node-madge/lib/graph').image(tree, options, saveImage);
-            domainManager.emitEvent("madge", "update", pathToImage);
             return;
         } else {
             tree = new Madge(targetPath, options).tree;
@@ -140,10 +114,32 @@ maxerr: 50, node: true */
         @return 
     */
     function generateGVImage(src, format) {
-
         if (isGVInstalled && doGV) {
-            var options = {"format": format, "layout": "neato", "type": "png"};
-            generateGraph(src, options, true);
+            var options = {"format": format, "layout": layout, "type": "png", "colors": {"fontColor" : fontColor,
+                            "dependencies" : dependencies,
+                            "fontFace" : fontFace,
+                            "edge" : edge,
+                            "bgcolor": bgcolor}};
+            pathToImage = __dirname + "/../generated/gv-" + format + ".png";
+
+            var madgeImage = new Madge(src, options).image(options, function (image) {
+                fs.unlink(pathToImage, function (err) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        console.log("successfully deleted : " + pathToImage);
+                    }
+                });
+                fs.writeFile(pathToImage, image, function (err) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        console.log("The file was saved! " + pathToImage);
+                        domainManager.emitEvent("madge", "update", pathToImage);
+                    }
+                });
+                return;
+            });
         } else {
             //TODO throw an error
             return isGVInstalled;
@@ -178,7 +174,13 @@ maxerr: 50, node: true */
             var jsonObj = JSON.parse(configData);
             console.log("jsonObj: " + jsonObj.GraphVis);
             doGV = jsonObj.GraphVis;
-            console.log("doGV: " + doGV);
+            layout = jsonObj.layout;
+            fontColor = jsonObj.fontColor;
+            dependencies = jsonObj.dependencies;
+            fontFace = jsonObj.fontFace;
+            edge = jsonObj.edge;
+            bgcolor = jsonObj.bgcolor;
+            console.log("doGV: " + doGV + "  layout: " + layout + " bgcolor : " + bgcolor);
         });
     }
     

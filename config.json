@@ -1,14 +1,15 @@
 {
+    "_comment" : "layout engine to use for image graph (dot/neato/fdp/sfdp/twopi/circo)",
     "default_format": "amd",
     "image": "generated/graph.png",
     "GraphVis": true,
     "fontFace": "Arial",
     "fontSize": "14px",
-    "imageColors": {
-        "noDependencies" : "#0000ff",
-        "dependencies" : "#00ff00",
-        "circular" : "#bada55",
-        "edge" : "#666666",
-        "bgcolor": "#ffffff"
-    }
+    "fontColor": "#ffffff",
+    "layout": "neato",
+    "noDependencies" : "#0000ff",
+    "dependencies" : "#00ff00",
+    "circular" : "#bada55",
+    "edge" : "#666666",
+    "bgcolor": "#000000"
 }
