@@ -167,7 +167,11 @@ define(function (require, exports, module) {
         minResults = false;
         makeCell = function (content, end, altColors, arrowPos, parseObj) {
             var arrow = "-> ", element = null, newContent, i, contentArray;
-            content = content.toString();
+            
+            if (!content === null) {
+                content  = content.toString();
+            }
+            
             if (parseObj) {
                 contentArray = content.split(',');
                 newContent = "";
@@ -327,12 +331,14 @@ define(function (require, exports, module) {
                             .append(makeCell(noResltsMsg, true, false, null))
                             .appendTo(itemTable);
                     if (modFormat === "cjs") {
+                        headerTable = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
                         itemHeaders = "<tr><th>Module Dependceny List ( " + modFormat + " )</th></tr>";
                         $(headerTable).append(itemHeaders);
                         $(headerTable).append(itemTable);
                         $("#cjs").empty().append(headerTable);
                         modFormat = "amd";
                     } else if (modFormat === "amd") {
+                        headerTable = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
                         itemHeaders = "<tr><th>Module Dependceny List ( " + modFormat + " )</th></tr>";
                         $(headerTable).append(itemHeaders);
                         $(headerTable).append(itemTable);
