@@ -6,11 +6,15 @@ this extension enables you to generate reports to show your module dependencies 
 ## Installation
 Use Brackets "File -> Install Extension" tool
 
-NOTE about GraphVis: when you have GraphVis installed we'll also generate "png" graph images for a single view. I installed GraphVis from http://www.graphviz.org/
+
+
+UPDATE - the GraphVis functionality has been disabled while we research a bug involving caching images.  sahlas/brackets-node-madge issue #4
+
+---NOTE about GraphVis: when you have GraphVis installed we'll also generate "png" graph images for a single view. I installed GraphVis from http://www.graphviz.org/
 
 GraphVis attributes and properties are configurable from the config.json file
 
-GraphVis functionality has been tested on Mac OS X at this time
+GraphVis functionality has been tested on Mac OS X at this time---
 
 ## Usage
 * List Dependencies - in the project panel select a folder you want to analyze.  Choose List Dependencies for the folder and brackets-node-madge will analyze it for the formats "cjs" for Common JS and
