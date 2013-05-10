@@ -40,7 +40,6 @@ maxerr: 50, node: true */
     var pathToImage = "";
     //imageColor options
     var fontColor, fontFace, dependencies, edge, bgcolor;
-
     
     /**
      * @private
@@ -58,18 +57,15 @@ maxerr: 50, node: true */
             tree = new Madge(targetPath, options).tree;
             circular = require('./node_modules/node-madge/lib/analysis/circular')(tree);
             results = circular.getArray(tree);
-            // domainManager.emitEvent("madge", "update", results);
             return results;
         } else if (options.depends) {
             tree = new Madge(targetPath, options).tree;
             id = options.id;
             results = require('./node_modules/node-madge/lib/analysis/depends')(tree, id);
-            domainManager.emitEvent("madge", "update", results);
-            return;
+            return results;
         } else if (!options.circular && !options.depends) {
             tree = new Madge(targetPath, options).tree;
-            domainManager.emitEvent("madge", "update", tree);
-            return;
+            return tree;
         } else {
             tree = null;
             targetPath = "";
@@ -85,13 +81,15 @@ maxerr: 50, node: true */
     */
     function listDependencies(src, format) {
         var options = {"format": format};
-        generateGraph(src, options, false);
+        console.log("call");        
+        var results = generateGraph(src, options, false);
+        return {results: results};
     }
     
     /*    
         show circular dependencies (format can be cjs || amd)
         $madge -c /path/src
-        @return 
+        @return Array
     */
     function findCircularDependencies(src, format) {
         var options = {"format": format, "circular": "true"};
@@ -101,12 +99,13 @@ maxerr: 50, node: true */
     
     /*    
         show modules that depends on the given id (format can be cjs || amd)
-        $madge -d /path/src
-        @return 
+        $madge -d 'moduleId' /path/src
+        @return Array
     */
     function listDependenciesForModule(src, format, id) {
         var options = {"format": format, "depends": "true", "id": id};
-        generateGraph(src, options, false);
+        var results = generateGraph(src, options, false);
+        return {results: results};
     }
     
     /*    
@@ -214,8 +213,7 @@ maxerr: 50, node: true */
             false,
             "List Module Dependencies",
             [{name: "source", type: "string"}, {name: "format", type: "string"}],
-            [{name: "report",
-                type: "{report: string}"}]
+            [{name: "results", type: "{results: string}"}]
         );
 
         domainManager.registerCommand(
@@ -235,14 +233,7 @@ maxerr: 50, node: true */
             false,
             "generate report",
             [{name: "source", type: "string"}, {name: "format", type: "string"}, {name: "id", type: "string"}],
-            [{name: "report",
-                type: "{report: string}"}]
-        );
-        
-        domainManager.registerEvent(
-            "madge",
-            "update",
-            ["data"]
+            [{name: "results", type: "{results: array}"}]
         );
     }
     // used in unit tests

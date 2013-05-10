@@ -43,26 +43,22 @@ define(function (require, exports, module) {
         NodeConnection          = brackets.getModule("utils/NodeConnection"),
         // local vars and config file
         moduleDir               = FileUtils.getNativeModuleDirectoryPath(module),
-        madgeReportEntry        = new NativeFileSystem.FileEntry(moduleDir + '/generated/madgeReport.html'),
         configFile              = new NativeFileSystem.FileEntry(moduleDir + '/config.json'),
         config                  = { options: {}, globals: {} },
         report                  = "",
-        commandsArray            = [],
+        commandsArray           = [],
         projectMenu             = Menus.getContextMenu(Menus.ContextMenuIds.PROJECT_MENU),
-        MADGE_CJS_CMD           = "madge_cjs",
-        MADGE_AMD_CMD           = "madge_amd",
-        MADGE_CJS_I_CMD         = "madge_cjs_i",
-        MADGE_AMD_I_CMD         = "madge_amd_i",
-        MADGE_CRC_CJS_CMD       = "madge_circular_dep_cjs",
-        MADGE_CRC_AMD_CMD       = "madge_circular_dep_amd",
-        MADGE_DFM_CJS_CMD       = "madge_dependencies_for_module_cjs",
-        MADGE_DFM_AMD_CMD       = "madge_dependencies_for_module_amd",
+        MADGE_LD_CMD            = "madge_ld",
+        MADGE_CRC_CMD           = "madge_circular_dep",
         dirSelection            = "",
         TOGGLE_REPORT           = "quality.metrics.madge",
         enabled                 = false,
-        modFormat               = "cjs",
         moduleName              = "",
+        modFormat               = "cjs",
+        originModuleName        = "",
+        originModFormat         = "",
         panel                   = require("text!templates/madge_panel.html"),
+        displayTemplate         = require("text!templates/madge_DependsOnModuleId.html"),
         imageTemplate           = "",
         resolved                = false,
         doDependsOnId           = false,
@@ -88,7 +84,6 @@ define(function (require, exports, module) {
     }
     
     function fileExists(file) {
-        
         NativeFileSystem.resolveNativeFileSystemPath(file, function (entry) {
             console.log("Path for " + entry.name + " resolved");
             resolved = true;
@@ -96,19 +91,25 @@ define(function (require, exports, module) {
             console.log("Error resolving path: " + err.name);
             resolved = false;
         });
-        doDependsOnId = resolved;
         return resolved;
     }
-    
+
     function handleShowPanel() {
         //add the HTML UI
         $(panel).insertBefore("#status-bar");
+        $(displayTemplate).insertBefore("#status-bar");
         Resizer.makeResizable($('#panel').get(0), "vert", "top", 100);
+        Resizer.makeResizable($('#panelForDepend').get(0), "vert", "top", 100);
         $('#panel .close').click(function () {
             $('#panel').hide();
+            $('#panelForDepend').hide();
             EditorManager.resizeEditor();
         });
         $('#panel').show();
+        $('#panelForDepend .close').click(function () {
+            $('#panelForDepend').hide();
+            EditorManager.resizeEditor();
+        });
         EditorManager.resizeEditor();
     }
     
@@ -126,52 +127,51 @@ define(function (require, exports, module) {
             enabled = true;
         }
         setEnabled(enabled);
+        $("#ulistForDepend").empty();
     }
 
     //process results for module_id
-    function clicker(result, minResults, isImage, makeCell, itemTable, noResltsMsg) {
-        if (doDependsOnId) {
-            console.log(result);
-            // process dependencies on given id
-            if (!minResults && !isImage) {
-                var row = $("<tr/>")
-                        .append(makeCell(result, true, false, null))
+    function searchForModuleDependencies(result) {
+        var i,
+            row,
+            html,
+            report,
+            headerTable,
+            itemHeaders,
+            itemTable;
+        
+        headerTable = $("<table class='zebra-striped ' style='overflow:hidden;'/>").append("<tbody>");
+        itemHeaders = "<tr><th>modules that depend on: " + originModuleName + "  ( " + originModFormat + " )</th></tr>";
+        $(headerTable).append(itemHeaders);
+        itemTable = $("<table/>").empty().append("<tbody>");
+        $("#tabularForDepend").empty();
+        if (result.length > 0) {
+            for (i in result) {
+                if (result.hasOwnProperty(i)) {
+                    console.log(result[i]);
+                    row = $("<tr id='parentrow'/>")
+                        .append('<td>' + result[i] + '</td>')
                         .appendTo(itemTable);
-                if (modFormat === "cjs" && minResults) {
-                    $("#cjs").append(itemTable);
-                    modFormat = "amd";
-                } else if (modFormat === "amd"  && minResults) {
-                    $("#amd").append(itemTable);
-                    modFormat = "cjs";
-                    doDependsOnId = false;
-                } else {
-                     // when nothing to report print one row saying so
-                    if (!minResults) {
-                        row = $("<tr/>")
-                                .append(makeCell(noResltsMsg, true, false, null))
-                                .appendTo(itemTable);
-                        modFormat = "cjs";
-                        doDependsOnId = false;
-    
-                    }
                 }
             }
+        } else {
+            row = $("<tr id='parentrow'/>")
+                .append('<td> no other modules depend on this module</td>')
+                .appendTo(itemTable);
         }
+        $(headerTable).append(itemTable);
+        $("#tabularForDepend").empty().append(headerTable)
+        doDependsOnId = false;
     }
     
-    
     function resultsProcessor(result) {
-        var template, html, doc, key, prop, i, obj, moduleElem, dependencyElem, moduleName, row, outerRow, pathToGraph,
-            dependencyName, newFileName, makeCell, headerTable, itemTable, itemHeaders, noResltsMsg, minResults, count, selectedRow, isImage;
+        var template, doc, key, prop, i, obj, moduleElem, dependencyElem, row, outerRow, pathToGraph,
+            dependencyName, newFileName, makeCell, headerTable, itemTableForGraph, headerTableForGraph, itemTable, itemHeaders, noResltsMsg, minResults, count, selectedRow, isImage;
 
         minResults = false;
         makeCell = function (content, end, altColors, arrowPos, parseObj) {
             var arrow = "-> ", element = null, newContent, i, contentArray;
-            
-            if (!content === null) {
-                content  = content.toString();
-            }
-            
+            content  =  content + "";
             if (parseObj) {
                 contentArray = content.split(',');
                 newContent = "";
@@ -182,28 +182,27 @@ define(function (require, exports, module) {
                 }
                 content = content.replace(new RegExp(',', 'g'), '  ->  ');
             }
-            
             if (altColors) {// mark end - no need for further punctuation format
                 if (!end) {
                     if (arrowPos === "begin") {
-                        return $("<td/>").text(arrow + content).css({fontSize: 20, color: 'green'});
+                        return $("<td/>").text(arrow + content);
                     } else {
-                        return $("<td/>").text(content).css({fontSize: 16, color: 'green'});
+                        return $("<td/>").text(content);
                     }
                     
                 } else {
-                    return $("<td/>").text(content).css({fontSize: 20, color: 'green'});
+                    return $("<td/>").text(content);
                 }
             } else {
                 if (!end) {// mark end - no need for further punctuation format
                     if (arrowPos === "begin") {
-                        return $("<td/>").text(arrow + content).css({fontSize: 20, color: 'blue'});
+                        return $("<td/>").text(arrow + content);
                     } else {
-                        return $("<td/>").text(content).css({fontSize: 16, color: 'blue'});
+                        return $("<td/>").text(content);
                     }
                     
                 } else {
-                    return $("<td/>").text(content).css({fontSize: 20, color: 'blue'});
+                    return $("<td/>").text(content);
                 }
             }
         };
@@ -216,17 +215,16 @@ define(function (require, exports, module) {
         } catch (err) {
             isImage = false;
         }
-
         if (!Array.isArray(result)) {
             // list module dependencies
             itemTable = $("<table class='zebra-striped ' />").empty().append("<tbody>");
+            $(itemTable).empty();
             for (key in result) {
                 if (result.hasOwnProperty(key) && !doDependsOnId) {
-
                     obj = result[key];
                     if (obj.length > 0) {// modules here have dependencies so include in report only mods with dependencies
                         minResults = true;
-                        row = $("<tr/>")
+                        row = $("<tr id='parentrow'/>")
                             .append(makeCell(key, true, true, null)) // adding key (module name) 
                             .appendTo(itemTable);
                         $(row).dblclick(function () {
@@ -253,23 +251,18 @@ define(function (require, exports, module) {
                             $(this).addClass("selected");
                             selectedRow = $(this);
                             doDependsOnId = true;
-                            nodeConnection.domains.madge.listDependenciesForModule(dirSelection, "cjs", moduleName)
-                                .done(function () {
-                                    nodeConnection.domains.madge.listDependenciesForModule(dirSelection, "amd", moduleName);
-                                })
-                                .fail(function (err) {
-                                    console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
-                                    var dlg = Dialogs.showModalDialog(
-                                        Dialogs.DIALOG_ID_ERROR,
-                                        "Madge Error",
-                                        "This action triggered an error: " + err.toString()
-                                    );
-                                });
+                            if ($(selectedRow).parent().parent().parent().parent()[0].id === "amd") {
+                                nodeConnectionManager("listDependenciesForModule", "amd");
+                                originModFormat = "amd";
+                            } else {
+                                nodeConnectionManager("listDependenciesForModule", "cjs");
+                                originModFormat = "cjs";
+                            }
                         });
     
                         for (prop in obj) {
                             if (obj.hasOwnProperty(prop)) {
-                                outerRow = $("<tr/>")
+                                outerRow = $("<tr id='childrow'/>")
                                     .append(makeCell(obj[prop], false, false, "begin")) // adding dependencies for key 
                                     .appendTo(itemTable);
                                 $(outerRow).dblclick(function () {
@@ -293,19 +286,14 @@ define(function (require, exports, module) {
                                     moduleName = this.innerText.replace('-> ', '');
                                     $(this).addClass("selected");
                                     selectedRow = $(this);
-                                    doDependsOnId = true;
-                                    nodeConnection.domains.madge.listDependenciesForModule(dirSelection, "cjs", moduleName)
-                                        .done(function () {
-                                            nodeConnection.domains.madge.listDependenciesForModule(dirSelection,  "amd", moduleName);
-                                        })
-                                        .fail(function (err) {
-                                            console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
-                                            var dlg = Dialogs.showModalDialog(
-                                                Dialogs.DIALOG_ID_ERROR,
-                                                "Madge Error",
-                                                "This action triggered an error: " + err.toString()
-                                            );
-                                        });
+                                   
+                                    if ($(selectedRow).parent().parent().parent().parent()[0].id === "amd") {
+                                        nodeConnectionManager("listDependenciesForModule", "amd");
+                                        originModFormat = "amd";
+                                    } else {
+                                        nodeConnectionManager("listDependenciesForModule", "cjs");
+                                        originModFormat = "cjs";
+                                    }
                                 });
                             }
                         }
@@ -318,12 +306,14 @@ define(function (require, exports, module) {
                 $(headerTable).append(itemHeaders);
                 $(headerTable).append(itemTable);
                 $("#cjs").empty().append(headerTable);
+                modFormat = "amd";
             } else if (modFormat === "amd"  && minResults  && !isImage) {
                 headerTable = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
                 itemHeaders = "<tr><th>Module Dependceny List ( " + modFormat + " )</th></tr>";
                 $(headerTable).append(itemHeaders);
                 $(headerTable).append(itemTable);
                 $("#amd").empty().append(headerTable);
+                modFormat = "cjs";
             } else {
                  // when nothing to report print one row saying so
                 if (!minResults && !isImage) {
@@ -352,50 +342,46 @@ define(function (require, exports, module) {
             *  configurable in config.json as GraphVis=true/false that lets you override this generation. If/when
             *  GraphVis is not installed all GraphVis references are ignored.
             */
-            itemTable = $("<table class='zebra-striped ' />").empty().append("<tbody>");
-            pathToGraph = moduleDir + "/generated/gv-" + modFormat +  ".png";
-            row = $("<tr/>")
-                    .append("<td/>").text(pathToGraph).css({fontSize: 20, color: 'black'})
-                    .appendTo(itemTable);
-            $(row).click(function () {
-                if (selectedRow) {
-                    selectedRow.removeClass("selected");
-                }
-                if (this.innerText.match('cjs')) {
-                    modFormat = "cjs";
-                } else {
-                    modFormat = "amd";
-                }
-                var graphVisImageHolder = new NativeFileSystem.FileEntry(moduleDir + "/generated/graphVisImage-" + modFormat + ".html"),
-                    data = {
-                        filename : pathToGraph
-                    };
-                $(this).addClass("selected");
-                selectedRow = $(this);
-                nodeConnection.domains.madge.generateGVImage(dirSelection,  modFormat)
-                    .done(function () {
-                        imageTemplate = require("text!templates/madge.html");
-                        html = Mustache.render(imageTemplate, data);
-                        FileUtils.writeText(graphVisImageHolder, html).done(function () {
-                            var report = window.open(graphVisImageHolder.fullPath);
-                            report.focus();
-                        });
-                    });
-            });
-            if (modFormat === "cjs" && minResults) {
-                headerTable = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
-                itemHeaders = "<tr><th>Module Dependceny Graph ( " + modFormat + " )</th></tr>";
-                $(headerTable).append(itemTable);
-                $("#cjs").append(headerTable);
-                modFormat = "amd";
-            } else if (modFormat === "amd"  && minResults) {
-                headerTable = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
-                itemHeaders = "<tr><th>Module Dependceny Graph ( " + modFormat + " )</th></tr>";
-                $(headerTable).append(itemTable);
-                $("#amd").append(headerTable);
-                modFormat = "cjs";
-                
-            }
+//            pathToGraph = moduleDir + "/generated/gv-" + modFormat +  ".png";
+//            row = $("<tr/>")
+//                    .append("<td/>").text(pathToGraph).css({color: 'green'});
+//            $(row).click(function () {
+//                clickevent = true;
+//                if (selectedRow) {
+//                    selectedRow.removeClass("selected");
+//                }
+//                if (this.innerText.match('cjs')) {
+//                    modFormat = "cjs";
+//                } else {
+//                    modFormat = "amd";
+//                }
+//                $(this).addClass("selected");
+//                selectedRow = $(this);
+//                
+//                nodeConnectionManager('generateGVImage', modFormat, pathToGraph);
+//                return;
+//            });
+//            if (!clickevent) { // add row only first time through
+//                if (modFormat === "cjs") {
+//                    itemTableForGraph = $("<table class='zebra-striped ' />").append("<tbody>");
+//                    $(row).appendTo(itemTableForGraph);
+//                    headerTableForGraph = $("<table class='condensed-table' style='overflow:hidden;'/>").empty().append("<tbody>");
+//                    itemHeaders = "<tr><th>Module Dependceny Graph ( " + modFormat + " )</th></tr>";
+//                    $(headerTableForGraph).append(itemHeaders);
+//                    $(headerTableForGraph).append(itemTableForGraph);
+//                    $("#cjs").append(headerTableForGraph);
+//                    modFormat = "amd";
+//                } else if (modFormat === "amd") {
+//                    itemTableForGraph = $("<table class='zebra-striped ' />").append("<tbody>");
+//                    $(row).appendTo(itemTableForGraph);
+//                    headerTableForGraph = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
+//                    itemHeaders = "<tr><th>Module Dependceny Graph ( " + modFormat + " )</th></tr>";
+//                    $(headerTableForGraph).append(itemHeaders);
+//                    $(headerTableForGraph).append(itemTableForGraph);
+//                    $("#amd").append(headerTableForGraph);
+//                    modFormat = "cjs";
+//                }
+//            }
         } else { // list circular references
             noResltsMsg = "No circular dependencies found!";
             headerTable = $("<table class='condensed-table' style='overflow:hidden;'/>").append("<tbody>");
@@ -462,36 +448,131 @@ define(function (require, exports, module) {
                         $(headerTable).append(itemHeaders);
                         $(headerTable).append(itemTable);
                         $("#amd").empty().append(headerTable);
+                        modFormat = "cjs";
                     }
                 }
             }
         }//circular refs
-        
-        if (doDependsOnId) {
-            clicker(result, minResults, isImage, makeCell, itemTable, noResltsMsg);
-        }
-
     }
-    
-    AppInit.appReady(function () {
+
+    function nodeConnectionManager(method, modFormat, pathToGraph) {
         nodeConnection = new NodeConnection();
 
         function connect() {
             var connectionPromise = nodeConnection.connect(true);
-            connectionPromise.fail(function () {
-                console.error("[brackets-madge] failed to connect to node");
-            });
+            connectionPromise
+                .done(function () {
+                    console.log("connection sucess");
+                })
+                .fail(function () {
+                    console.error("[brackets-madge] failed to connect to node");
+                });
             return connectionPromise;
         }
         function loadDomain() {
-            var path = ExtensionUtils.getModulePath(module, "node/MadgeDomain"),
-                loadPromise = nodeConnection.loadDomains([path], true);
-            loadPromise.fail(function () {
-                console.log("[brackets-madge] failed to load MadgeDomain");
-            });
-            return loadPromise;
+            var path = ExtensionUtils.getModulePath(module, "node/MadgeDomain");
+            var loadDomainPromise = nodeConnection.loadDomains([path], true);
+            loadDomainPromise
+                .done(function () {
+                    switch (method) {
+                    case 'listDependencies':
+                        $('#panelForDepend').hide();//hide when new call execs    
+                        nodeConnection.domains.madge.listDependencies(dirSelection, "cjs")
+                            .done(function (val) {
+                                resultsProcessor(val.results);
+                                modFormat = "amd";
+                                nodeConnection.domains.madge.listDependencies(dirSelection,  "amd")
+                                    .done(function (val) {
+                                        resultsProcessor(val.results);
+                                        modFormat = "cjs";
+                                    })
+                                    (function (err) {
+                                    console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
+                                    var dlg = Dialogs.showModalDialog(
+                                        Dialogs.DIALOG_ID_ERROR,
+                                        "Madge Error",
+                                        "This action triggered an error: " + err.toString()
+                                    );
+                                });
+                            });
+                        break;
+//                    case 'generateGVImage':
+//                        nodeConnection.domains.madge.generateGVImage(dirSelection,  modFormat)
+//                            .done(function () {
+//                                var graphVisImageHolder = new NativeFileSystem.FileEntry(moduleDir + "/generated/graphVisImage-" + modFormat + ".html"),
+//                                    html,
+//                                    report,
+//                                    data = {
+//                                        filename : pathToGraph
+//                                    };
+//                                imageTemplate = require("text!templates/madge.html");
+//                                html = Mustache.render(imageTemplate, data);
+//                                FileUtils.writeText(graphVisImageHolder, html).done(function () {
+//                                    report = window.open(graphVisImageHolder.fullPath);
+//                                    report.focus();
+//                                });
+//                            });
+//                        break;
+                    case 'findCircularDependencies':
+                        $('#panelForDepend').hide();//hide when new call execs    
+                        nodeConnection.domains.madge.findCircularDependencies(dirSelection, "cjs")
+                            .done(function (results) {
+                                report = results.report;
+                                resultsProcessor(report);
+                                modFormat = "amd";
+                                nodeConnection.domains.madge.findCircularDependencies(dirSelection, "amd")
+                                    .done(function (results) {
+                                        report = results.report;
+                                        resultsProcessor(report);
+                                        modFormat = "cjs";
+                                    })
+                                    .fail(function (err) {
+                                        console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
+                                        var dlg = Dialogs.showModalDialog(
+                                            Dialogs.DIALOG_ID_ERROR,
+                                            "Madge Error",
+                                            "This action triggered an error: " + err.toString()
+                                        );
+                                    });
+                            })
+                            .fail(function (err) {
+                                console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
+                                var dlg = Dialogs.showModalDialog(
+                                    Dialogs.DIALOG_ID_ERROR,
+                                    "Madge Error",
+                                    "This action triggered an error: " + err.toString()
+                                );
+                            });
+                        break;
+                    case 'listDependenciesForModule':
+                        $('#panelForDepend').show();
+                        EditorManager.resizeEditor();
+                        originModuleName = moduleName;
+                        nodeConnection.domains.madge.listDependenciesForModule(dirSelection, modFormat, moduleName)
+                            .done(function (val) {
+                                searchForModuleDependencies(val.results);
+                            })
+                            .fail(function (err) {
+                                console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
+                                var dlg = Dialogs.showModalDialog(
+                                    Dialogs.DIALOG_ID_ERROR,
+                                    "Madge Error",
+                                    "This action triggered an error: " + err.toString()
+                                );
+                            });
+                        break;
+                    default:
+                            // ?
+                    }
+                })
+                .fail(function () {
+                    console.log("[brackets-madge] failed to load MadgeDomain");
+                });
+            return loadDomainPromise;
         }
+        
         $(nodeConnection).on("madge.update", function (evt, nodeResults) {
+            console.log("evt 'listDependencies' " + evt);
             if (!nodeResults) {
                 var dlg = Dialogs.showModalDialog(
                     Dialogs.DIALOG_ID_ERROR,
@@ -505,95 +586,30 @@ define(function (require, exports, module) {
         });
         // Call all the helper functions in order
         chain(connect, loadDomain);
-    });
-
-
+    }
 
     function listDependencies() {
-        nodeConnection.domains.madge.listDependencies(dirSelection, "cjs")
-            .done(function () {
-                nodeConnection.domains.madge.listDependencies(dirSelection,  "amd");
-            })
-            .fail(function (err) {
-                console.error("[brackets-madge] failed to run MadgeDomain.listDependencies", err.toString());
-                var dlg = Dialogs.showModalDialog(
-                    Dialogs.DIALOG_ID_ERROR,
-                    "Madge Error",
-                    "This action triggered an error: " + err.toString()
-                );
-            });
+        nodeConnectionManager('listDependencies');
     }
     
     function findCircularDependencies() {
-        var reportPromise0, reportPromise1;
-        reportPromise0 = nodeConnection.domains.madge.findCircularDependencies(dirSelection, "cjs");
-        reportPromise0.done(function (results) {
-            report = results.report;
-            resultsProcessor(report);
-            modFormat = "amd";
-        });
-        
-        reportPromise0.fail(function (err) {
-            console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
-            var dlg = Dialogs.showModalDialog(
-                Dialogs.DIALOG_ID_ERROR,
-                "Madge Error",
-                "This action triggered an error: " + err.toString()
-            );
-        });
-
-        reportPromise1 = nodeConnection.domains.madge.findCircularDependencies(dirSelection, "amd");
-        reportPromise1.done(function (results) {
-            report = results.report;
-            resultsProcessor(report);
-            modFormat = "cjs";
-        });
-        
-        reportPromise1.fail(function (err) {
-            console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
-            var dlg = Dialogs.showModalDialog(
-                Dialogs.DIALOG_ID_ERROR,
-                "Madge Error",
-                "This action triggered an error: " + err.toString()
-            );
-        });
+        nodeConnectionManager('findCircularDependencies');
     }
-    
-    function listDependenciesForModule() {
-        nodeConnection.domains.madge.listDependenciesForModule(dirSelection, "cjs", moduleName)
-            .done(function () {
-                nodeConnection.domains.madge.listDependenciesForModule(dirSelection,  "amd", moduleName);
-            })
-            .fail(function (err) {
-                console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
-                var dlg = Dialogs.showModalDialog(
-                    Dialogs.DIALOG_ID_ERROR,
-                    "Madge Error",
-                    "This action triggered an error: " + err.toString()
-                );
-            });
-    }
-    
+        
     // on click check if it's a directory add context menuitem
     function handleMenu(menu, entry) {
         var i;
         for (i = 0; i < commandsArray.length; i = i + 1) {
             menu.removeMenuItem(commandsArray[i]);
         }
-        if (entry.isFile) {// do listDepenciesForModule
-
-            menu.addMenuItem(MADGE_DFM_CJS_CMD, "", Menus.LAST);
-        } else {
-            menu.addMenuItem(MADGE_CJS_CMD, "", Menus.LAST);
-            menu.addMenuItem(MADGE_CRC_CJS_CMD, "", Menus.LAST);
-        }
+        menu.addMenuItem(MADGE_LD_CMD, "", Menus.LAST);
+        menu.addMenuItem(MADGE_CRC_CMD, "", Menus.LAST);
     }
     
     // Register commands as right click menu items
-    commandsArray = [MADGE_CJS_CMD, MADGE_CRC_CJS_CMD, MADGE_DFM_CJS_CMD];
-    CommandManager.register("List Dependencies", MADGE_CJS_CMD, listDependencies);
-    CommandManager.register("Find Circular Dependencies", MADGE_CRC_CJS_CMD, findCircularDependencies);
-    CommandManager.register("List Dependencies For Module", MADGE_DFM_CJS_CMD, listDependenciesForModule);
+    commandsArray = [MADGE_LD_CMD, MADGE_CRC_CMD];
+    CommandManager.register("List Dependencies", MADGE_LD_CMD, listDependencies);
+    CommandManager.register("Find Circular Dependencies", MADGE_CRC_CMD, findCircularDependencies);
     // Register panel results
     CommandManager.register("Madge Report", TOGGLE_REPORT, togglePanel);
     
@@ -604,6 +620,10 @@ define(function (require, exports, module) {
             ": " + error
         );
     }
+    
+    AppInit.appReady(function () {
+        
+    });
     
     FileUtils.readAsText(configFile)
         .done(function (text, readTimestamp) {
