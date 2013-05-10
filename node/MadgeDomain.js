@@ -81,7 +81,6 @@ maxerr: 50, node: true */
     */
     function listDependencies(src, format) {
         var options = {"format": format};
-        console.log("call");        
         var results = generateGraph(src, options, false);
         return {results: results};
     }

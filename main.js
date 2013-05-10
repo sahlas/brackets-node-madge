@@ -160,7 +160,7 @@ define(function (require, exports, module) {
                 .appendTo(itemTable);
         }
         $(headerTable).append(itemTable);
-        $("#tabularForDepend").empty().append(headerTable)
+        $("#tabularForDepend").empty().append(headerTable);
         doDependsOnId = false;
     }
     
@@ -470,8 +470,8 @@ define(function (require, exports, module) {
             return connectionPromise;
         }
         function loadDomain() {
-            var path = ExtensionUtils.getModulePath(module, "node/MadgeDomain");
-            var loadDomainPromise = nodeConnection.loadDomains([path], true);
+            var path = ExtensionUtils.getModulePath(module, "node/MadgeDomain"),
+                loadDomainPromise = nodeConnection.loadDomains([path], true);
             loadDomainPromise
                 .done(function () {
                     switch (method) {
@@ -486,14 +486,14 @@ define(function (require, exports, module) {
                                         resultsProcessor(val.results);
                                         modFormat = "cjs";
                                     })
-                                    (function (err) {
-                                    console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
-                                    var dlg = Dialogs.showModalDialog(
-                                        Dialogs.DIALOG_ID_ERROR,
-                                        "Madge Error",
-                                        "This action triggered an error: " + err.toString()
-                                    );
-                                });
+                                    .fail(function (err) {
+                                        console.error("[brackets-madge] failed to run MadgeDomain.cmdGetReport", err.toString());
+                                        var dlg = Dialogs.showModalDialog(
+                                                Dialogs.DIALOG_ID_ERROR,
+                                                "Madge Error",
+                                                "This action triggered an error: " + err.toString()
+                                            );
+                                    });
                             });
                         break;
 //                    case 'generateGVImage':
