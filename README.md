@@ -10,11 +10,9 @@ Use Brackets "File -> Install Extension" tool
 
 UPDATE - the GraphVis functionality has been disabled while we research a bug involving caching images.  sahlas/brackets-node-madge issue #4
 
----NOTE about GraphVis: when you have GraphVis installed we'll also generate "png" graph images for a single view. I installed GraphVis from http://www.graphviz.org/
-
+_NOTE about GraphVis: when you have GraphVis installed we'll also generate "png" graph images for a single view. I installed GraphVis from http://www.graphviz.org/
 GraphVis attributes and properties are configurable from the config.json file
-
-GraphVis functionality has been tested on Mac OS X at this time---
+GraphVis functionality has been tested on Mac OS X at this time_
 
 ## Usage
 * List Dependencies - in the project panel select a folder you want to analyze.  Choose List Dependencies for the folder and brackets-node-madge will analyze it for the formats "cjs" for Common JS and
@@ -28,4 +26,5 @@ I'm working on a better layout with tabs and tree controls to better navigate th
 
 ## Change Log
 * 5/2 - initial checkin
-* 5/7 - fix JSLint issues, fixed bugs in main.js and node/MadgeDomain.js
+* 5/7 - fixed JSLint issues, fixed bugs in main.js and node/MadgeDomain.js
+* 5/10 - fixed issue #1; disabled GraphVis for issue #4
